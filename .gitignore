@@ -1,0 +1,13 @@
+# Ignore downloaded compiler files and extraction folders
+w64devkit/
+compiler/
+*.zip
+
+# Ignore Node.js dependencies
+node_modules/
+
+# Ignore the compiled extension packages
+*.vsix
+
+# Ignore VS Code workspace settings
+.vscode/

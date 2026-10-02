@@ -1,0 +1,39 @@
+{
+  "name": "offline-cpp-runner",
+  "displayName": "Offline CP Runner",
+  "description": "Zero-setup offline C/C++ runner with a bundled compiler. Just click play.",
+  "version": "1.0.0",
+  "publisher": "cpp-runner",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": ["Other"],
+  "main": "./src/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "commands": [
+      {
+        "command": "offline-cpp-runner.run",
+        "title": "Run C/C++ Code",
+        "icon": "$(play)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "offline-cpp-runner.run",
+          "when": "resourceLangId == c || resourceLangId == cpp",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^2.21.0",
+    "axios": "^1.6.0",
+    "adm-zip": "^0.5.10"
+  },
+  "scripts": {
+    "build-product": "node setup.js"
+  }
+}
