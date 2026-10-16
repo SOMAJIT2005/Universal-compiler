@@ -71,7 +71,7 @@ async function build(arch, bundleOnly = false) {
     const { validateBundle } = require('./scripts/validate-bundle');
     validateBundle(runtime, arch);
     if (process.platform === 'win32') {
-        execFileSync(process.execPath, [path.join(root, 'scripts', 'smoke-windows.js'), arch], { stdio: 'inherit' });
+        execFileSync(process.env.RUNTIME_TEST_NODE || process.execPath, [path.join(root, 'scripts', 'smoke-windows.js'), arch], { stdio: 'inherit' });
     }
     if (bundleOnly) return;
     const extension = path.join(staging, 'extension');

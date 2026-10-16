@@ -26,6 +26,6 @@ npm run build-product -- --arch=x64
 npm run build-product -- --arch=ia32
 ```
 
-Building requires Node.js and Python with pip. Release builds run compiler/library edge cases on Windows before publishing both VSIX files and SHA-256 checksums. x86 CI runs under WOW64; a native 32-bit Windows VM and manual VS Code checks are still needed for full platform validation. Passing tests cannot guarantee every possible program works perfectly.
+Building requires Node.js 22+ (x64) and Python with pip. Release builds run compiler/library edge cases on Windows before publishing both VSIX files and SHA-256 checksums. x86 CI runs under WOW64; a native 32-bit Windows VM and manual VS Code checks are still needed for full platform validation. Passing tests cannot guarantee every possible program works perfectly.
 
 See [compatibility and build details](docs/COMPATIBILITY.md), [test status](docs/TESTING.md), and [third-party notices](THIRD_PARTY.md).

@@ -18,7 +18,7 @@ int main() {
     std::sort(data.begin(), data.end());
     assert(std::accumulate(data.begin(), data.end(), 0LL) == 4999950000LL);
     assert(twice(2147483647LL) == 4294967294LL);
-    try { data.at(data.size()); assert(false); }
+    try { (void)data.at(data.size()); assert(false); }
     catch (const std::out_of_range&) {}
     std::string payload("A\0B\r\n", 5);
     { std::ofstream file("cpp's & file.bin", std::ios::binary); file.write(payload.data(), payload.size()); }
