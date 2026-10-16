@@ -1,0 +1,61 @@
+name: Windows offline bundles
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            nodeArch: x64
+          - arch: ia32
+            nodeArch: x86
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          architecture: ${{ matrix.nodeArch }}
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          architecture: x64
+      - run: npm ci
+      - run: npm test
+      # Packaging is reached only after real bundled-tool edge cases pass.
+      - run: npm run build-product -- --arch=${{ matrix.arch }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: offline-runner-win32-${{ matrix.arch }}
+          path: dist/*.vsix
+          if-no-files-found: error
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: windows
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: offline-runner-win32-*
+          merge-multiple: true
+          path: dist
+      - name: Verify version and create checksums
+        run: |
+          node -e 'if (process.env.GITHUB_REF_NAME !== "v" + require("./package.json").version) process.exit(1)'
+          cd dist
+          sha256sum *.vsix > SHA256SUMS
+      - name: Publish tested Windows bundles
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/*.vsix dist/SHA256SUMS --verify-tag --title "Offline Code Runner $GITHUB_REF_NAME" --notes-file docs/RELEASE_NOTES.md

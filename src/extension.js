@@ -1,102 +1,58 @@
 const vscode = require('vscode');
 const path = require('path');
 const os = require('os');
-const { exec } = require('child_process');
 const fs = require('fs');
-
-let runTerminal = null;
-let lastOutPath = null; // Track the previous executable to delete it later
+const { execFile } = require('child_process');
+const { promisify } = require('util');
+const { selectRuntime, planRun, runtimeEnv, powershellCommand } = require('./runner');
+const compile = promisify(execFile);
 
 function activate(context) {
-    let disposable = vscode.commands.registerCommand('offline-cpp-runner.run', async () => {
-        const editor = vscode.window.activeTextEditor;
-        if (!editor) return;
-
-        const doc = editor.document;
-        if (doc.languageId !== 'c' && doc.languageId !== 'cpp') {
-            vscode.window.showErrorMessage('Please open a C or C++ file.');
-            return;
-        }
-
-        await doc.save();
-        const filePath = doc.fileName;
-        const fileName = path.parse(filePath).name;
-
-        // SMART CLEANUP: Delete the previously compiled file to keep the Temp folder spotless
-        if (lastOutPath && fs.existsSync(lastOutPath)) {
-            try {
-                fs.unlinkSync(lastOutPath);
-            } catch (e) {
-                // Ignore silently if the old terminal process is still hanging on to the file
+    const output = vscode.window.createOutputChannel('Offline Code Runner');
+    context.subscriptions.push(output);
+    context.subscriptions.push(vscode.commands.registerCommand('offline-cpp-runner.run', async () => {
+        let work;
+        let terminal;
+        try {
+            if (!vscode.workspace.isTrusted) throw new Error('Trust this workspace before running code.');
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) return;
+            const doc = editor.document;
+            if (!['c', 'cpp', 'python', 'java'].includes(doc.languageId)) throw new Error('Open a C, C++, Python, or Java file.');
+            const runtime = selectRuntime(context.extensionPath);
+            if (!await doc.save()) return;
+            if (doc.uri.scheme !== 'file') throw new Error('Save the code to a local file before running it.');
+            work = fs.mkdtempSync(path.join(os.tmpdir(), 'offline-runner-'));
+            const plan = planRun(runtime, doc.languageId, doc.fileName, work, doc.getText());
+            const env = runtimeEnv(runtime);
+            const cwd = path.dirname(doc.fileName);
+            if (plan.compile) {
+                await vscode.window.withProgress({
+                    location: vscode.ProgressLocation.Notification, title: 'Compiling code...', cancellable: false
+                }, () => compile(plan.compile.file, plan.compile.args, { cwd, env, windowsHide: true, timeout: 120000, maxBuffer: 4 * 1024 * 1024 }));
             }
-        }
-
-        vscode.window.withProgress({
-            location: vscode.ProgressLocation.Notification,
-            title: "Compiling code...",
-            cancellable: false
-        }, () => {
-            return new Promise((resolve) => {
-                let compileCmd;
-                let outPath;
-                let customEnv = Object.assign({}, process.env);
-
-                if (os.platform() === 'win32') {
-                    const compilerFolder = path.join(__dirname, '..', 'compiler', 'w64devkit', 'bin');
-                    const compilerPath = path.join(compilerFolder, 'g++.exe');
-                    
-                    if (!fs.existsSync(compilerPath)) {
-                        vscode.window.showErrorMessage('Compiler not found! Ensure the extension built correctly.');
-                        resolve();
-                        return;
-                    }
-
-                    outPath = path.join(os.tmpdir(), `${fileName}_${Date.now()}.exe`);
-                    lastOutPath = outPath; // Save path for the next cleanup cycle
-                    
-                    customEnv.PATH = `${compilerFolder};${process.env.PATH}`;
-                    compileCmd = `"${compilerPath}" "${filePath}" -o "${outPath}"`;
-                } else {
-                    outPath = path.join(os.tmpdir(), `${fileName}_${Date.now()}`);
-                    lastOutPath = outPath;
-                    compileCmd = `g++ "${filePath}" -o "${outPath}"`;
-                }
-                
-                exec(compileCmd, { env: customEnv }, (err, stdout, stderr) => {
-                    resolve();
-                    if (err) {
-                        vscode.window.showErrorMessage(`Compilation Error:\n${stderr}`);
-                        return;
-                    }
-
-                    if (!runTerminal || runTerminal.exitStatus !== undefined) {
-                        runTerminal = vscode.window.createTerminal('C++ CP Runner');
-                    }
-                    
-                    runTerminal.show(false); 
-                    vscode.commands.executeCommand('workbench.action.terminal.clear');
-                    
-                    if (os.platform() === 'win32') {
-                        runTerminal.sendText(`& "${outPath}"`);
-                    } else {
-                        runTerminal.sendText(`"${outPath}"`);
-                    }
-                });
+            // Explicit shell avoids assuming that the user's default terminal is PowerShell.
+            terminal = vscode.window.createTerminal({
+                name: 'Offline Code Runner', cwd, env,
+                shellPath: path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'),
+                shellArgs: ['-NoLogo', '-NoProfile']
             });
-        });
-    });
-
-    context.subscriptions.push(disposable);
+            const cleanup = vscode.window.onDidCloseTerminal(closed => {
+                if (closed === terminal) {
+                    fs.rmSync(work, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+                    cleanup.dispose();
+                }
+            });
+            context.subscriptions.push(terminal, cleanup);
+            terminal.show(false);
+            terminal.sendText(powershellCommand(plan.run.file, plan.run.args));
+        } catch (error) {
+            if (work && !terminal) fs.rmSync(work, { recursive: true, force: true });
+            output.appendLine(error.stderr || error.message);
+            output.show(true);
+            vscode.window.showErrorMessage(`Run failed: ${error.message}`);
+        }
+    }));
 }
 
-function deactivate() {
-    // Final cleanup: delete the last file when VS Code is closed
-    if (lastOutPath && fs.existsSync(lastOutPath)) {
-        try { fs.unlinkSync(lastOutPath); } catch (e) {}
-    }
-}
-
-module.exports = {
-    activate,
-    deactivate
-};
+module.exports = { activate, deactivate() {} };

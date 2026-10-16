@@ -1,20 +1,22 @@
 {
   "name": "offline-cpp-runner",
-  "displayName": "Offline CP Runner",
-  "description": "Zero-setup offline C/C++ runner with a bundled compiler. Just click play.",
-  "version": "1.0.0",
+  "displayName": "Offline Code Runner",
+  "description": "Bundled Windows C/C++, Python and Java runner. No separate compiler installation.",
+  "version": "1.1.0",
   "publisher": "cpp-runner",
   "engines": {
     "vscode": "^1.80.0"
   },
-  "categories": ["Other"],
+  "categories": [
+    "Other"
+  ],
   "main": "./src/extension.js",
   "activationEvents": [],
   "contributes": {
     "commands": [
       {
         "command": "offline-cpp-runner.run",
-        "title": "Run C/C++ Code",
+        "title": "Run C/C++/Python/Java Code",
         "icon": "$(play)"
       }
     ],
@@ -22,7 +24,7 @@
       "editor/title": [
         {
           "command": "offline-cpp-runner.run",
-          "when": "resourceLangId == c || resourceLangId == cpp",
+          "when": "isWorkspaceTrusted && (resourceLangId == c || resourceLangId == cpp || resourceLangId == python || resourceLangId == java)",
           "group": "navigation"
         }
       ]
@@ -34,6 +36,22 @@
     "adm-zip": "^0.5.10"
   },
   "scripts": {
-    "build-product": "node setup.js"
+    "test": "node --test test/runner.test.js test/extension.test.js test/bundle.test.js",
+    "build-product": "node setup.js",
+    "test:windows": "node scripts/smoke-windows.js"
+  },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "Running code requires a trusted workspace."
+    },
+    "virtualWorkspaces": false
+  },
+  "author": {
+    "name": "Somajit Deb"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SOMAJIT2005/Universal-compiler.git"
   }
 }

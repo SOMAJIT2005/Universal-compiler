@@ -11,3 +11,8 @@ node_modules/
 
 # Ignore VS Code workspace settings
 .vscode/
+# Release toolchains, caches and staging
+runtimes/
+.cache/
+.build/
+dist/
