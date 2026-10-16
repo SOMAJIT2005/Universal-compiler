@@ -30,7 +30,7 @@ npm run build-product -- --arch=x64
 npm run build-product -- --arch=ia32
 ```
 
-Set `BUILDER_PYTHON` to the builder Python executable if necessary. Downloads are pinned by SHA-256 in `toolchains.json`; Python dependencies use hash-locked binary wheels. The build checks PE architecture of launchers and native libraries, rejects Fortran executables/runtimes, and fails with a nonzero exit status on any error. Each package includes only its matching architecture and upstream license files. Artifacts are written to `dist/`. They are large because full offline runtimes and scientific libraries are included.
+Use x64 Node.js 22+ for release builds. For an ia32 build on Windows, set `RUNTIME_TEST_NODE` to the path of a 32-bit Node.js 22 executable; VSCE itself must run under x64 Node because its signing dependency no longer supports x86. Set `BUILDER_PYTHON` to the builder Python executable if necessary. Downloads are pinned by SHA-256 in `toolchains.json`; Python dependencies use hash-locked binary wheels. The build checks PE architecture of launchers and native libraries, rejects Fortran executables/runtimes, and fails with a nonzero exit status on any error. Each package includes only its matching architecture and upstream license files. Artifacts are written to `dist/`. They are large because full offline runtimes and scientific libraries are included.
 
 The builder can prepare and package Windows files on Linux. Native execution checks require Windows and a Node executable matching the selected architecture. On Windows the build runs these checks before packaging:
 
